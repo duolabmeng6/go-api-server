@@ -1,0 +1,46 @@
+info:
+  contact: {}
+  license: {}
+paths:
+  /:
+    get:
+      description: hello接口
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      summary: hello接口
+      tags:
+      - hello
+  /user/signup:
+    post:
+      parameters:
+      - description: 用户账号名称
+        in: formData
+        name: passport
+        required: true
+        type: string
+      - description: 用户密码
+        in: formData
+        name: password
+        required: true
+        type: string
+      - description: 确认密码
+        in: formData
+        name: password2
+        required: true
+        type: string
+      - description: 用户昵称
+        in: formData
+        name: nickname
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 执行结果
+      summary: 用户注册接口
+      tags:
+      - 用户服务
+swagger: "2.0"

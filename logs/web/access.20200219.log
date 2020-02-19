@@ -1,0 +1,51 @@
+2020-02-19 18:05:43.525 [ERRO] 500, "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 1.021, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+Stack:
+1. configuration for redis not found for group "default"
+   1).  laravel-go/app/Http/Controllers/Api.(*Controller).Create
+    	C:/Users/csuil/Desktop/goproject/go-api-server/app/Http/Controllers/Api/ApiController.go:29
+
+2020-02-19 18:05:43.525 500 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 1.021, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:06:24.014 [ERRO] 500, "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 4.987, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+Stack:
+1. interface conversion: interface {} is []uint8, not string
+   1).  laravel-go/app/Http/Controllers/Api.(*Controller).Create
+    	C:/Users/csuil/Desktop/goproject/go-api-server/app/Http/Controllers/Api/ApiController.go:32
+
+2020-02-19 18:06:24.015 500 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 4.987, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:06:41.917 [ERRO] 500, "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 3.973, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+Stack:
+1. interface conversion: interface {} is []uint8, not string
+   1).  laravel-go/app/Http/Controllers/Api.(*Controller).Create
+    	C:/Users/csuil/Desktop/goproject/go-api-server/app/Http/Controllers/Api/ApiController.go:32
+
+2020-02-19 18:06:41.917 500 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 3.973, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:07:10.642 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 4.986, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:07:12.323 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 2.991, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:10:22.770 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 2.992, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:10:23.676 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 1.995, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:23:17.428 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.998, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:23:18.718 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.000, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:23:19.965 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.997, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:23:39.765 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.000, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:23:43.384 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.997, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:23:44.542 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.000, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 18:26:16.061 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 2.003, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 19:22:39.086 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.998, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 19:28:27.162 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 1.992, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 19:28:35.816 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.998, 127.0.0.1, "", "PostmanRuntime/7.6.0"
+2020-02-19 20:20:05.003 404 "GET http 127.0.0.1:8199 /favicon.ico HTTP/1.1" 0.997, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:20:05.168 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.997, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:20:05.280 404 "GET http 127.0.0.1:8199 /favicon.ico HTTP/1.1" 0.000, 127.0.0.1, "http://127.0.0.1:8199/api/create", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:20:55.308 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.000, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:21:29.714 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.997, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:21:55.645 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 3001.972, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:22:22.465 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 3001.669, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:22:31.300 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 3001.129, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:22:36.683 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 3000.468, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:23:34.689 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.997, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:23:35.795 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.989, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:23:36.282 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.998, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:23:36.745 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.998, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:23:37.306 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.000, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:49:40.991 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.000, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+2020-02-19 20:49:42.098 200 "GET http 127.0.0.1:8199 /api/create HTTP/1.1" 0.997, 127.0.0.1, "", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"

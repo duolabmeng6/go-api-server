@@ -1,0 +1,42 @@
+# HTTP Server配置
+[server]
+	Address        = ":8199"
+	ServerRoot     = "public"
+	ServerAgent    = "gf-demos"
+	NameToUriType  = 2
+	RouteOverWrite = true
+
+    LogPath           = "./logs/web"
+    LogStdout         = false
+    ErrorStack        = true
+    ErrorLogEnabled   = true
+    ErrorLogPattern   = "error.{Ymd}.log"
+    AccessLogEnabled  = true
+    AccessLogPattern  = "access.{Ymd}.log"
+# 全局日志配置
+[logger]
+    Path   = "./logs"
+    Level  = "all"
+    Stdout = true
+
+# 模板引擎配置
+[viewer]
+    Path        = "template"
+    DefaultFile = "index.html"
+    Delimiters  =  ["${", "}"]
+
+# 数据库连接
+[database]
+    link  = "mysql:root:root@tcp(127.0.0.1:3306)/gotest"
+    debug = true
+    # 数据库日志对象配置
+    [database.logger]
+        Path   = "./log/sql"
+        Level  = "all"
+        Stdout = true
+
+# Redis数据库配置
+[redis]
+    default = "127.0.0.1:6379,0"
+    disk  = "127.0.0.1:6379,0"
+    cache = "127.0.0.1:6379,1"
