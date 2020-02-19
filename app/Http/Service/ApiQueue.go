@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/CHH/eventemitter"
 	. "github.com/duolabmeng6/efun/efun"
+	"github.com/gogf/gf/container/gmap"
 	"github.com/gogf/gf/database/gredis"
 	"github.com/gogf/gf/frame/g"
 )
@@ -11,6 +12,7 @@ import (
 type ApiQueue struct {
 	redisConn *gredis.Conn
 	emitter   *eventemitter.EventEmitter
+	Hash      *gmap.Map
 }
 
 //初始化消息队列
@@ -19,6 +21,7 @@ func NewApiQuue() *ApiQueue {
 	api.Init()
 
 	api.emitter = eventemitter.New()
+	api.Hash = gmap.New()
 
 	go func() {
 		fmt.Printf("开始订阅数据")
@@ -48,6 +51,9 @@ func NewApiQuue() *ApiQueue {
 
 			api.emitter.Emit("call", data)
 			//这里如何回调到 PushWait 的函数中
+
+			api.Hash.Set("call", data)
+
 		}
 	}()
 
@@ -70,12 +76,18 @@ func (this *ApiQueue) PushWait(key string, senddata string) string {
 
 	ret, _ := this.redisConn.Do("lpush", "queue_test", data)
 	fmt.Printf("lpush结果%v \r\n", ret)
-	this.emitter.On("call", func(value string) {
-		fmt.Printf("收到返回的结果了 %s", value)
-	})
+	//this.emitter.On("call", func(value string) {
+	//	fmt.Printf("收到返回的结果了 %s", value)
+	//})
+	var value string
+	for value == "" {
+		value = this.Hash.GetVar("call").String()
+		fmt.Printf("call结果%v \r\n", value)
+		E延时(100)
+	}
 
 	//我要在这里拿到 后端处理好的结果 然后返回
-	return "怎么返回啊"
+	return value
 }
 
 //取出任务
