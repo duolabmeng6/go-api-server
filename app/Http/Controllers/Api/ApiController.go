@@ -1,6 +1,7 @@
 package Api
 
 import (
+	"github.com/duolabmeng6/efun/efun"
 	"github.com/gogf/gf-demos/library/response"
 	"github.com/gogf/gf/net/ghttp"
 	"laravel-go/app/Http/Service"
@@ -29,13 +30,14 @@ func (c *Controller) GetQueueInfo(r *ghttp.Request) {
 //创建任务
 func (c *Controller) Create(r *ghttp.Request) {
 	//推入一个任务,等待后端处理完成以后返回结果
-	data := Queue.PushWait("1", "123456")
+	data := Queue.PushWait("1", "123456", 10)
 	//这里把它 卡主 等着后端处理的结果
+	json := efun.NewJson()
+	json.LoadFromJsonString(data)
 
-	response.JsonExit(r, 0, data)
+	response.JsonExit(r, 0, "成功", json.Data())
 
 	//go func(r *ghttp.Request) {
 	//	efun.E延时(3000)
 	//	response.JsonExit(r, 0, "aaa")
 	//}(r)
-}
