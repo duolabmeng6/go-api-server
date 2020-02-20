@@ -17,5 +17,3 @@ require (
 	golang.org/x/tools v0.0.0-20200203193511-33212cd6a08a // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
-
-replace github.com/duolabmeng6/efun => C:/Users/csuil/Desktop/goproject/github_efun

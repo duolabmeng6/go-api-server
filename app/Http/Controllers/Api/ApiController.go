@@ -41,3 +41,4 @@ func (c *Controller) Create(r *ghttp.Request) {
 	//	efun.E延时(3000)
 	//	response.JsonExit(r, 0, "aaa")
 	//}(r)
+}
