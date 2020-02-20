@@ -13,8 +13,8 @@ type ApiQueue struct {
 	redisConn *gredis.Redis
 	keychan   map[string]chan string
 	channel   string
-	QueueName string
-	Lock      sync.RWMutex
+	queueName string
+	lock      sync.RWMutex
 }
 type TaskData struct {
 	//任务id 回调函数id
@@ -40,7 +40,7 @@ func NewApiQueue(queue_name string) *ApiQueue {
 
 	this.keychan = map[string]chan string{}
 	this.channel = "channel_" + Euuidv4()
-	this.QueueName = queue_name
+	this.queueName = queue_name
 
 	//用于监听数据,任务完成以后将数据实时回调
 	go func() {
@@ -70,9 +70,9 @@ func NewApiQueue(queue_name string) *ApiQueue {
 
 			//通过go的chan回调数据
 
-			this.Lock.RLock()
+			this.lock.RLock()
 			funchan, ok := this.keychan[fun]
-			this.Lock.RUnlock()
+			this.lock.RUnlock()
 			if ok {
 				funchan <- data
 			} else {
@@ -112,17 +112,17 @@ func (this *ApiQueue) PushWait(key string, senddata string, timeOut int) (string
 	if this.Push(string(jsondata)) == false {
 		return "push error", false
 	}
-	value, flag := this.WaitResult(key, timeOut)
-	//E调试输出格式化("WaitResult %v %s \r\n", flag, value)
+	value, flag := this.waitResult(key, timeOut)
+	//E调试输出格式化("waitResult %v %s \r\n", flag, value)
 	return value, flag
 }
 
 //加入任务
-func (this *ApiQueue) WaitResult(key string, timeOut int) (string, bool) {
+func (this *ApiQueue) waitResult(key string, timeOut int) (string, bool) {
 	//注册监听通道
-	this.Lock.Lock()
+	this.lock.Lock()
 	this.keychan[key] = make(chan string)
-	this.Lock.Unlock()
+	this.lock.Unlock()
 
 	var value string
 
@@ -144,9 +144,9 @@ func (this *ApiQueue) WaitResult(key string, timeOut int) (string, bool) {
 		}
 	}
 	//将通道的key删除
-	this.Lock.Lock()
+	this.lock.Lock()
 	delete(this.keychan, key)
-	this.Lock.Unlock()
+	this.lock.Unlock()
 
 	if timeOutFlag {
 		return "time out", false
@@ -157,7 +157,7 @@ func (this *ApiQueue) WaitResult(key string, timeOut int) (string, bool) {
 //加入任务
 func (this *ApiQueue) Push(data string) bool {
 
-	_, err := this.redisConn.Do("lpush", this.QueueName, data)
+	_, err := this.redisConn.Do("lpush", this.queueName, data)
 	if err != nil {
 		E调试输出("Push Error", err.Error())
 	}
@@ -168,7 +168,7 @@ func (this *ApiQueue) Push(data string) bool {
 func (this *ApiQueue) Pop() (*TaskData, bool) {
 	taskData := &TaskData{}
 
-	ret, _ := this.redisConn.DoVar("lpop", this.QueueName)
+	ret, _ := this.redisConn.DoVar("lpop", this.queueName)
 	if ret.String() == "" {
 		return taskData, false
 	}
@@ -212,4 +212,26 @@ func (this *ApiQueue) Callfun(taskData *TaskData) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+//队列中相关信息
+func (this *ApiQueue) Info() string {
+	llen, _ := this.redisConn.DoVar("llen", this.queueName)
+	list, _ := this.redisConn.DoVar("lrange", this.queueName, 0, 10)
+
+	jsonData := NewJson()
+	jsonData.Set("count", llen.Int())
+
+	for _, data := range list.Strings() {
+		//E调试输出(data)
+
+		TaskData := TaskData{}
+		json.Unmarshal([]byte(data), &TaskData)
+
+		jsonData.SetArray("list", TaskData)
+	}
+
+	//E调试输出(jsonData.ToJson(true))
+
+	return jsonData.ToJson(false)
 }

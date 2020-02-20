@@ -41,7 +41,8 @@ func (c *Controller) PutQueue(r *ghttp.Request) {
 
 //获取队列中的状态信息
 func (c *Controller) GetQueueInfo(r *ghttp.Request) {
-	response.JsonExit(r, 0, "GetQueueInfo")
+	data := Queue.Info()
+	r.Response.WriteExit(data)
 }
 
 //创建任务
@@ -62,5 +63,6 @@ func (c *Controller) Create(r *ghttp.Request) {
 	E调试输出格式化("收到任务结果  耗时 %s \r\n完成任务数据 %s \r\n", time.E取毫秒(), data)
 	json := NewJson()
 	json.LoadFromJsonString(data)
+	json.Set("time", time.E取毫秒())
 	response.JsonExit(r, 200, "成功", json.Data())
 }
