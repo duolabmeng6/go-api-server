@@ -1,39 +1,54 @@
 package Service
 
 import (
-	"fmt"
-	"github.com/CHH/eventemitter"
+	"encoding/json"
 	. "github.com/duolabmeng6/efun/efun"
-	"github.com/gogf/gf/container/gmap"
-	"github.com/gogf/gf/container/gvar"
 	"github.com/gogf/gf/database/gredis"
 	"github.com/gogf/gf/frame/g"
+	"sync"
 	"time"
 )
 
 type ApiQueue struct {
-	redisConn *gredis.Conn
-	emitter   *eventemitter.EventEmitter
-	Hash      *gmap.Map
+	redisConn *gredis.Redis
 	keychan   map[string]chan string
+	channel   string
+	QueueName string
+	Lock      sync.RWMutex
+}
+type TaskData struct {
+	//任务id 回调函数id
+	Fun string `json:"fun"`
+	//任务数据
+	Data string `json:"data"`
+	//加入任务时间
+	StartTime int `json:"start_time"`
+	//超时时间
+	TimeOut int `json:"timeout"`
+	//执行完成结果
+	Result string `json:"result"`
+	//完成时间
+	CompleteTime int `json:"completeTime"`
+	//发布频道
+	Channel string `json:"channel"`
 }
 
 //初始化消息队列
-func NewApiQuue() *ApiQueue {
-	api := new(ApiQueue)
-	api.Init()
+func NewApiQueue(queue_name string) *ApiQueue {
+	this := new(ApiQueue)
+	this.Init()
 
-	api.emitter = eventemitter.New()
-	api.Hash = gmap.New()
+	this.keychan = map[string]chan string{}
+	this.channel = "channel_" + Euuidv4()
+	this.QueueName = queue_name
 
-	api.keychan = map[string]chan string{}
-
+	//用于监听数据,任务完成以后将数据实时回调
 	go func() {
-		fmt.Printf("开始订阅数据")
+		//E调试输出格式化("开始订阅数据 channel %s", this.channel)
+		//新建一个 redis连接
 		conn := g.Redis().Conn()
-		defer conn.Close()
 
-		_, err := conn.Do("SUBSCRIBE", "channel_return")
+		_, err := conn.Do("SUBSCRIBE", this.channel)
 		if err != nil {
 			panic(err)
 		}
@@ -42,138 +57,159 @@ func NewApiQuue() *ApiQueue {
 			if err != nil {
 				panic(err)
 			}
-			message := reply.Vars()[0].String()
-			channel := reply.Vars()[1].String()
+			//message := reply.Vars()[0].String()
+			//channel := reply.Vars()[1].String()
 			value := reply.Vars()[2].String()
 
-			fmt.Printf("%s channel:%s value:%s \r\n", message, channel, value)
-			json := NewJson()
-			ok := json.LoadFromJsonString(value)
+			//E调试输出格式化("%s channel:%s value:%s \r\n", message, channel, value)
 
-			fun := json.GetString("fun")
-			data := json.GetString("data")
-			fmt.Printf("%s fun:%s data:%s \r\n", ok, fun, data)
+			taskData := &TaskData{}
+			json.Unmarshal([]byte(value), &taskData)
+			data := taskData.Result
+			fun := taskData.Fun
 
-			//api.emitter.Emit("call", data)
-			//这里如何回调到 PushWait 的函数中
+			//通过go的chan回调数据
 
-			//api.Hash.Set("call", data)
-
-			api.keychan[fun] <- data
-
-		}
-	}()
-
-	//获取任务
-	go func() {
-		conn := g.Redis().Conn()
-		defer conn.Close()
-
-		t := time.NewTicker(time.Second * 3)
-		for {
-			select {
-			case <-t.C:
-				fmt.Println("定时检查队列中的任务 去完成它")
-				Popdata := api.Pop().String()
-				if Popdata == "" {
-					fmt.Println("没有任务呢")
-					break
-				}
-				json := NewJson()
-				json.LoadFromJsonString(Popdata)
-
-				fun := json.GetString("fun")
-				data := json.GetString("data")
-
-				fmt.Printf("Pop fun: %s data: %s  \r\n", fun, data)
-
-				if data == "" {
-					break
-				}
-				//t.Stop()
-				rejson := NewJson()
-				rejson.Set("fun", fun)
-				//rejson.Set("data", "ok reload"+data)
-				rejson.Set("data.name", "hello")
-				rejson.Set("data.age", "10")
-				fmt.Println("完成任务", rejson.ToJson(false))
-
-				_, err := conn.Do("publish", "channel_return", rejson.ToJson(false))
-				if err != nil {
-					panic(err)
-				}
+			this.Lock.RLock()
+			funchan, ok := this.keychan[fun]
+			this.Lock.RUnlock()
+			if ok {
+				funchan <- data
+			} else {
+				//E调试输出格式化("fun not find %s", fun)
 
 			}
+
 		}
 	}()
-	return api
-}
 
-//初始化消息队列
-func (this *ApiQueue) Init() *ApiQueue {
-	this.redisConn = g.Redis().Conn()
 	return this
 }
 
 //初始化消息队列
-func (this *ApiQueue) PushWait(key string, senddata string, timeOut int) string {
-	data := NewJson()
-	data.Set("fun", key)
-	data.Set("data", senddata)
-	data.Set("timeOut", timeOut)
-	data.Set("time", E取时间戳())
+func (this *ApiQueue) Init() *ApiQueue {
+	this.redisConn = g.Redis()
+	return this
+}
 
-	fmt.Printf("将任务推入队列 %s \r\n", data.ToJson(true))
+//初始化消息队列
+func (this *ApiQueue) PushWait(key string, senddata string, timeOut int) (string, bool) {
+	taskData := TaskData{}
+	////任务id
+	taskData.Fun = key
+	////任务数据
+	taskData.Data = senddata
+	////超时时间 1.pop 取出任务超时了 就放弃掉 2.任务在规定时间内未完成 超时 退出
+	taskData.TimeOut = timeOut
+	////任务加入时间
+	taskData.StartTime = int(E取时间戳())
+	taskData.Channel = this.channel
 
-	ret, _ := this.redisConn.Do("lpush", "queue_test", data.ToJson(false))
-	fmt.Printf("lpush结果%v \r\n", ret)
-	//this.emitter.On("call", func(value string) {
-	//	fmt.Printf("收到返回的结果了 %s", value)
-	//})
-	//var value string
-	//for value == "" {
-	//	value = this.Hash.GetVar("call").String()
-	//	fmt.Printf("call结果%v \r\n", value)
-	//	E延时(100)
-	//}
-	//this.Hash.Remove("call")
+	jsondata, _ := json.Marshal(taskData)
+	//E调试输出格式化("加入任务 %s \r\n", jsondata)
 
+	//加入任务
+	if this.Push(string(jsondata)) == false {
+		return "push error", false
+	}
+	value, flag := this.WaitResult(key, timeOut)
+	//E调试输出格式化("WaitResult %v %s \r\n", flag, value)
+	return value, flag
+}
+
+//加入任务
+func (this *ApiQueue) WaitResult(key string, timeOut int) (string, bool) {
 	//注册监听通道
-
+	this.Lock.Lock()
 	this.keychan[key] = make(chan string)
+	this.Lock.Unlock()
+
 	var value string
+
+	breakFlag := false
+	timeOutFlag := false
 	for {
-		breakFlag := false
 		select {
 		case data := <-this.keychan[key]:
-			fmt.Println("所有完成 done", data)
+			//收到结果放进去
 			value = data
 			breakFlag = true
 		case <-time.After(time.Duration(timeOut) * time.Second):
-			fmt.Println("超时")
+			//超时跳出并且删除
 			breakFlag = true
+			timeOutFlag = true
 		}
 		if breakFlag {
-			delete(this.keychan, key)
 			break
 		}
 	}
+	//将通道的key删除
+	this.Lock.Lock()
+	delete(this.keychan, key)
+	this.Lock.Unlock()
 
-	//我要在这里拿到 后端处理好的结果 然后返回
-	return value
+	if timeOutFlag {
+		return "time out", false
+	}
+	return value, true
+}
+
+//加入任务
+func (this *ApiQueue) Push(data string) bool {
+
+	_, err := this.redisConn.Do("lpush", this.QueueName, data)
+	if err != nil {
+		E调试输出("Push Error", err.Error())
+	}
+	return err == nil
 }
 
 //取出任务
-func (this *ApiQueue) Pop() *gvar.Var {
+func (this *ApiQueue) Pop() (*TaskData, bool) {
+	taskData := &TaskData{}
 
-	ret, _ := this.redisConn.DoVar("lpop", "queue_test")
+	ret, _ := this.redisConn.DoVar("lpop", this.QueueName)
+	if ret.String() == "" {
+		return taskData, false
+	}
 
-	fmt.Printf("Pop :%s \r\n", ret)
+	////E调试输出格式化("Pop %s \r\n", ret.String())
 
-	return ret
+	//这一句代码节省了一堆代码...
+	json.Unmarshal([]byte(ret.String()), &taskData)
+
+	//json := NewJson()
+	//json.LoadFromJsonString(ret.String())
+	//taskData.Fun = json.GetString("fun")
+	//taskData.Data = json.GetString("data")
+	//taskData.StartTime = json.GetString("start_time")
+	//taskData.TimeOut = json.GetString("timeout")
+
+	////E调试输出("获取任务 \r\n")
+	////E调试输出P(taskData)
+
+	return taskData, true
+
 }
 
 //回到函数
-func (this *ApiQueue) Callfun() {
+func (this *ApiQueue) Callfun(taskData *TaskData) {
 
+	//rejson := NewJson()
+	//rejson.Set("fun", taskData.Fun)
+	//rejson.Set("result", taskData.Result)
+	//rejson.Set("start_time", taskData.StartTime)
+	//rejson.Set("timeout", taskData.TimeOut)
+	//rejson.Set("complete_time", E取时间戳())
+	//////E调试输出("通知任务完成", rejson.ToJson(false))
+	taskData.CompleteTime = int(E取时间戳())
+
+	jsondata, _ := json.Marshal(taskData)
+	////E调试输出("\r\n 通知任务完成", string(jsondata))
+	////E调试输出("\r\n Channel", taskData.Channel)
+
+	_, err := this.redisConn.Do("publish", taskData.Channel, jsondata)
+	if err != nil {
+		panic(err)
+	}
 }
