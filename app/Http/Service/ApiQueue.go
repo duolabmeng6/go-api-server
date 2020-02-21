@@ -3,6 +3,7 @@ package Service
 import (
 	"encoding/json"
 	. "github.com/duolabmeng6/efun/efun"
+	. "github.com/duolabmeng6/efun/src/utils"
 	"github.com/gogf/gf/database/gredis"
 	"github.com/gogf/gf/frame/g"
 	"sync"
@@ -93,7 +94,7 @@ func (this *ApiQueue) Init() *ApiQueue {
 }
 
 //初始化消息队列
-func (this *ApiQueue) PushWait(key string, senddata string, timeOut int) (string, bool) {
+func (this *ApiQueue) PushWait(key string, senddata string, timeOut int, priority int) (string, bool) {
 	taskData := TaskData{}
 	////任务id
 	taskData.Fun = key
@@ -109,7 +110,7 @@ func (this *ApiQueue) PushWait(key string, senddata string, timeOut int) (string
 	//E调试输出格式化("加入任务 %s \r\n", jsondata)
 
 	//加入任务
-	if this.Push(string(jsondata)) == false {
+	if this.Push(string(jsondata), priority) == false {
 		return "push error", false
 	}
 	value, flag := this.waitResult(key, timeOut)
@@ -155,9 +156,8 @@ func (this *ApiQueue) waitResult(key string, timeOut int) (string, bool) {
 }
 
 //加入任务
-func (this *ApiQueue) Push(data string) bool {
-
-	_, err := this.redisConn.Do("lpush", this.queueName, data)
+func (this *ApiQueue) Push(data string, priority int) bool {
+	_, err := this.redisConn.Do("lpush", this.queueName+"_"+E到文本(priority), data)
 	if err != nil {
 		E调试输出("Push Error", err.Error())
 	}
@@ -165,30 +165,27 @@ func (this *ApiQueue) Push(data string) bool {
 }
 
 //取出任务
-func (this *ApiQueue) Pop() (*TaskData, bool) {
+//返回值 任务数据 TaskData 状态值 0 没有任务 1获取成功 2任务是超时的删除无需执行
+func (this *ApiQueue) Pop() (*TaskData, int) {
 	taskData := &TaskData{}
 
-	ret, _ := this.redisConn.DoVar("lpop", this.queueName)
+	//ret, _ := this.redisConn.DoVar("lpop", this.queueName)
+	ret, _ := this.redisConn.DoVar("blpop", this.queueName+"_2", this.queueName+"_1", this.queueName+"_0", 10)
 	if ret.String() == "" {
-		return taskData, false
+		return taskData, 0
+	}
+	//E调试输出格式化("Pop %s \r\n", ret.Strings()[1])
+	//这一句代码节省了一堆代码...
+	json.Unmarshal([]byte(ret.Strings()[1]), &taskData)
+
+	//E调试输出格式化("Pop %s \r\n", taskData)
+
+	if taskData.StartTime+taskData.TimeOut < int(E取时间戳()) {
+		E调试输出格式化("任务超时抛弃 %s \r\n", taskData)
+		return taskData, 2
 	}
 
-	////E调试输出格式化("Pop %s \r\n", ret.String())
-
-	//这一句代码节省了一堆代码...
-	json.Unmarshal([]byte(ret.String()), &taskData)
-
-	//json := NewJson()
-	//json.LoadFromJsonString(ret.String())
-	//taskData.Fun = json.GetString("fun")
-	//taskData.Data = json.GetString("data")
-	//taskData.StartTime = json.GetString("start_time")
-	//taskData.TimeOut = json.GetString("timeout")
-
-	////E调试输出("获取任务 \r\n")
-	////E调试输出P(taskData)
-
-	return taskData, true
+	return taskData, 1
 
 }
 

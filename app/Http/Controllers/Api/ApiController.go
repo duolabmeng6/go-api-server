@@ -16,23 +16,23 @@ var Queue = Service.NewApiQueue("queue_api")
 //获取队列中的任务
 func (c *Controller) GetQueue(r *ghttp.Request) {
 	data, flag := Queue.Pop()
-	if flag == false {
-		//E调试输出("没有任务呢")
-		response.JsonExit(r, 201, "没有任务")
-
-	} else {
+	if flag == 1 {
 		response.JsonExit(r, 200, "获取任务", data)
+	} else if flag == 0 {
+		response.JsonExit(r, 201, "没有任务")
+	} else if flag == 2 {
+		response.JsonExit(r, 202, "任务超时无需执行")
 	}
 
 }
 
-//提交处理后的任务数据
+//提交处理后的任务数据composer require tymon/jwt-auth:1.0.0-rc.3
 func (c *Controller) PutQueue(r *ghttp.Request) {
 	taskData := Service.TaskData{}
 	taskData.Fun = E到文本(r.Get("fun"))
 	taskData.Result = E到文本(r.Get("result"))
 	taskData.Channel = E到文本(r.Get("channel"))
-	E调试输出格式化("任务完成推送结果 PutQueue  fun:%s result:%s \r\n", taskData.Fun, taskData.Result)
+	//E调试输出格式化("任务完成推送结果 PutQueue  fun:%s result:%s \r\n", taskData.Fun, taskData.Result)
 
 	Queue.Callfun(&taskData)
 
@@ -53,14 +53,14 @@ func (c *Controller) Create(r *ghttp.Request) {
 	time.E开始()
 
 	uuid := Euuidv4()
-	E调试输出("生成任务id", uuid)
-	data, flag := Queue.PushWait(uuid, parameter, 5)
+	//E调试输出("生成任务id", uuid)
+	data, flag := Queue.PushWait(uuid, parameter, 5, E取随机数(0, 2))
 	if flag == false {
-		E调试输出("失败了", data)
+		//E调试输出("失败了", data)
 		response.JsonExit(r, 0, "失败"+data)
 		return
 	}
-	E调试输出格式化("收到任务结果  耗时 %s \r\n完成任务数据 %s \r\n", time.E取毫秒(), data)
+	//E调试输出格式化("收到任务结果  耗时 %s \r\n完成任务数据 %s \r\n", time.E取毫秒(), data)
 	json := NewJson()
 	json.LoadFromJsonString(data)
 	json.Set("time", time.E取毫秒())
