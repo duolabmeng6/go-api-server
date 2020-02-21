@@ -49,7 +49,7 @@ func init() {
 
 	s.Group("/", func(group *ghttp.RouterGroup) {
 		ApiController := new(Api.Controller)
-		group.ALL("/api", ApiController)
+		group.ALL("/api/ip_query", ApiController)
 
 	})
 }

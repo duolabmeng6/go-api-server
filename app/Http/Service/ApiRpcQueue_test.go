@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var Queue = NewApiQueue("queue_api")
+var Queue = NewApiRpcQueue("queue_api")
 
 func AutoHandle() {
 	//获取任务
@@ -45,7 +45,7 @@ func TestNewUserInfo(t *testing.T) {
 
 	uuid := Euuidv4()
 	E调试输出("生成任务id", uuid)
-	data, flag := Queue.PushWait(uuid, "123456", 10)
+	data, flag := Queue.PushWait(uuid, "123456", 10, 0)
 	if flag == false {
 		E调试输出("失败了", data)
 	}

@@ -11,11 +11,17 @@ import (
 // 用户API管理对象
 type Controller struct{}
 
-var Queue = Service.NewApiQueue("queue_api")
+var Queue = Service.NewApiRpcQueue("queue_api")
 
 //获取队列中的任务
-func (c *Controller) GetQueue(r *ghttp.Request) {
-	data, flag := Queue.Pop()
+func (c *Controller) Get(r *ghttp.Request) {
+
+	flag := 2
+	var data *Service.TaskData
+	for flag == 2 {
+		data, flag = Queue.Pop()
+	}
+
 	if flag == 1 {
 		response.JsonExit(r, 200, "获取任务", data)
 	} else if flag == 0 {
@@ -27,11 +33,12 @@ func (c *Controller) GetQueue(r *ghttp.Request) {
 }
 
 //提交处理后的任务数据composer require tymon/jwt-auth:1.0.0-rc.3
-func (c *Controller) PutQueue(r *ghttp.Request) {
+func (c *Controller) Put(r *ghttp.Request) {
 	taskData := Service.TaskData{}
 	taskData.Fun = E到文本(r.Get("fun"))
 	taskData.Result = E到文本(r.Get("result"))
 	taskData.Channel = E到文本(r.Get("channel"))
+	taskData.Queue = E到文本(r.Get("queue"))
 	//E调试输出格式化("任务完成推送结果 PutQueue  fun:%s result:%s \r\n", taskData.Fun, taskData.Result)
 
 	Queue.Callfun(&taskData)
@@ -40,9 +47,9 @@ func (c *Controller) PutQueue(r *ghttp.Request) {
 }
 
 //获取队列中的状态信息
-func (c *Controller) GetQueueInfo(r *ghttp.Request) {
+func (c *Controller) Info(r *ghttp.Request) {
 	data := Queue.Info()
-	r.Response.WriteExit(data)
+	response.JsonExit(r, 200, "队列信息", data)
 }
 
 //创建任务
@@ -54,6 +61,7 @@ func (c *Controller) Create(r *ghttp.Request) {
 
 	uuid := Euuidv4()
 	//E调试输出("生成任务id", uuid)
+
 	data, flag := Queue.PushWait(uuid, parameter, 5, E取随机数(0, 2))
 	if flag == false {
 		//E调试输出("失败了", data)
