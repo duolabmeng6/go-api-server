@@ -11,7 +11,8 @@ import (
 // 用户API管理对象
 type Controller struct{}
 
-var Queue = Service.NewApiRpcQueue("queue_api")
+var Queue = Service.NewApiRpcQueue("queue_ip_query")
+var ApiRpcLog = Service.NewApiRpcLog()
 
 //获取队列中的任务
 func (c *Controller) Get(r *ghttp.Request) {
@@ -61,7 +62,6 @@ func (c *Controller) Create(r *ghttp.Request) {
 
 	uuid := Euuidv4()
 	//E调试输出("生成任务id", uuid)
-
 	data, flag := Queue.PushWait(uuid, parameter, 5, E取随机数(0, 2))
 	if flag == false {
 		//E调试输出("失败了", data)

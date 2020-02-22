@@ -30,6 +30,8 @@ type ApiRpcQueue struct {
 	lock sync.RWMutex
 }
 
+var ApiLog = NewApiRpcLog()
+
 //调用任务的结构
 type TaskData struct {
 	//任务id 回调函数id
@@ -133,7 +135,12 @@ func (this *ApiRpcQueue) PushWait(key string, senddata string, timeOut int, prio
 	if this.push(string(jsondata), taskData.Queue, priority) == false {
 		return "push error", false
 	}
+
+	//写入日志
+	ApiLog.Put(&taskData)
+
 	value, flag := this.waitResult(key, timeOut)
+
 	//E调试输出格式化("waitResult %v %s \r\n", flag, value)
 	return value, flag
 }
@@ -177,6 +184,7 @@ func (this *ApiRpcQueue) waitResult(key string, timeOut int) (string, bool) {
 
 //加入任务
 func (this *ApiRpcQueue) push(data string, queueName string, priority int) bool {
+
 	_, err := this.redisConn.Do("lpush", queueName, data)
 	if err != nil {
 		E调试输出("Push Error", err.Error())
@@ -203,10 +211,12 @@ func (this *ApiRpcQueue) Pop() (*TaskData, int) {
 		//E调试输出格式化("任务超时抛弃 %s %s \r\n", ret.Strings()[0], taskData)
 		this.redisConn.Do("incr", ret.Strings()[0]+"_timeout_count")
 
+		ApiLog.SetStatus(taskData.Fun, 2)
 		return taskData, 2
 	}
 	this.redisConn.Do("incr", ret.Strings()[0]+"_pop_count")
 
+	ApiLog.SetStatus(taskData.Fun, 1)
 	return taskData, 1
 }
 
@@ -217,13 +227,14 @@ func (this *ApiRpcQueue) Callfun(taskData *TaskData) {
 	jsondata, _ := json.Marshal(taskData)
 	//E调试输出("\r\n 通知任务完成", string(jsondata))
 	//E调试输出("\r\n Channel", taskData.Channel)
-
-	this.redisConn.Do("incr", taskData.Queue+"_complete_count")
-
 	_, err := this.redisConn.Do("publish", taskData.Channel, jsondata)
 	if err != nil {
 		panic(err)
 	}
+
+	//日志记录
+	ApiLog.Put_complete(taskData)
+	this.redisConn.Do("incr", taskData.Queue+"_complete_count")
 }
 
 //队列中相关信息

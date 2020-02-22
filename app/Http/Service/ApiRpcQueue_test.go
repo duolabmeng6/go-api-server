@@ -18,7 +18,7 @@ func AutoHandle() {
 			case <-t.C:
 				E调试输出格式化("检查是否有任务需要处理 \r\n")
 				data, flag := Queue.Pop()
-				if flag == false {
+				if flag == 0 {
 					E调试输出格式化("没有任务呢")
 					break
 				}
