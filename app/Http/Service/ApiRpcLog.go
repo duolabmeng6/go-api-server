@@ -18,13 +18,13 @@ type TaskDataModel struct {
 	//任务数据
 	Data string `json:"data" gorm:"type:varchar(1000)"`
 	//加入任务时间
-	StartTime int `json:"start_time"`
+	StartTime int64 `json:"start_time"`
 	//超时时间
 	TimeOut int `json:"timeout"`
 	//执行完成结果
 	Result string `json:"result" gorm:"type:varchar(1000)"`
 	//完成时间
-	CompleteTime int `json:"complete_time"`
+	CompleteTime int64 `json:"complete_time"`
 	//发布频道
 	Channel string `json:"channel"`
 	//队列的名称
@@ -32,6 +32,8 @@ type TaskDataModel struct {
 
 	//状态 0 任务加入 1任务弹出处理中 2任务超时不处理 3任务完成
 	Status int `json:"status"`
+	//过程耗时
+	ProcessTime int64 `json:"process_time"`
 }
 
 func (TaskDataModel) TableName() string {
@@ -56,7 +58,7 @@ func NewApiRpcLog() *ApiRpcLog {
 func (this *ApiRpcLog) Init() *ApiRpcLog {
 	this.redisConn = g.Redis()
 	var err error
-	this.db, err = gorm.Open("sqlite3", "test.db")
+	this.db, err = gorm.Open("sqlite3", "test.db?cache=shared")
 	if err != nil {
 		E调试输出(err)
 		panic("连接数据库失败")
@@ -76,30 +78,43 @@ func (this *ApiRpcLog) Put(data *TaskData) bool {
 	}
 
 	// 创建
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
 	this.db.Create(&taskDataModel)
 
 	return true
 }
 
-func (this *ApiRpcLog) Put_complete(data *TaskData) bool {
+func (this *ApiRpcLog) Put_complete(data *TaskData, Status int) *TaskDataModel {
 	taskDataModel := TaskDataModel{}
 
 	err := gconv.Struct(data, &taskDataModel)
 	if err != nil {
 		panic(err)
-		return false
+		return &taskDataModel
 	}
 	//E调试输出P(taskDataModel)
-	taskDataModel.Status = 3
+	taskDataModel.Status = Status
 	// 创建
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
+	taskDataModel.CompleteTime = E取毫秒()
+	taskDataModel.ProcessTime = taskDataModel.CompleteTime - taskDataModel.StartTime
+
 	this.db.Model(&taskDataModel).
 		Where("fun = ?", taskDataModel.Fun).
 		Update(taskDataModel)
-	return true
+
+	return &taskDataModel
 }
 
 func (this *ApiRpcLog) SetStatus(fun string, status int) bool {
 	taskDataModel := TaskDataModel{}
+
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	this.db.Model(&taskDataModel).
 		Where("fun = ?", fun).
 		Update("status", status)
@@ -109,6 +124,7 @@ func (this *ApiRpcLog) SetStatus(fun string, status int) bool {
 func (this *ApiRpcLog) Find(fun string) (*TaskDataModel, bool) {
 	taskDataModel := TaskDataModel{}
 	// 创建
+
 	flag := this.db.
 		Where("fun = ?", fun).
 		First(&taskDataModel).RecordNotFound()

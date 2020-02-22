@@ -30,8 +30,6 @@ type ApiRpcQueue struct {
 	lock sync.RWMutex
 }
 
-var ApiLog = NewApiRpcLog()
-
 //调用任务的结构
 type TaskData struct {
 	//任务id 回调函数id
@@ -39,13 +37,13 @@ type TaskData struct {
 	//任务数据
 	Data string `json:"data"`
 	//加入任务时间
-	StartTime int `json:"start_time"`
+	StartTime int64 `json:"start_time"`
 	//超时时间
-	TimeOut int `json:"timeout"`
+	TimeOut int64 `json:"timeout"`
 	//执行完成结果
 	Result string `json:"result"`
 	//完成时间
-	CompleteTime int `json:"complete_time"`
+	CompleteTime int64 `json:"complete_time"`
 	//发布频道
 	Channel string `json:"channel"`
 	//队列的名称
@@ -112,8 +110,7 @@ func (this *ApiRpcQueue) Init() *ApiRpcQueue {
 	return this
 }
 
-//推入任务并且等待结果
-func (this *ApiRpcQueue) PushWait(key string, senddata string, timeOut int, priority int) (string, bool) {
+func (this *ApiRpcQueue) PushTask(key string, senddata string, timeOut int64, priority int) (*TaskData, bool) {
 	taskData := TaskData{}
 	//任务id
 	taskData.Fun = key
@@ -122,7 +119,7 @@ func (this *ApiRpcQueue) PushWait(key string, senddata string, timeOut int, prio
 	//超时时间 1.pop 取出任务超时了 就放弃掉 2.任务在规定时间内未完成 超时 退出
 	taskData.TimeOut = timeOut
 	//任务加入时间
-	taskData.StartTime = int(E取时间戳())
+	taskData.StartTime = E取毫秒()
 	//任务完成以后回调的频道名称
 	taskData.Channel = this.channel
 
@@ -133,20 +130,29 @@ func (this *ApiRpcQueue) PushWait(key string, senddata string, timeOut int, prio
 
 	//加入任务
 	if this.push(string(jsondata), taskData.Queue, priority) == false {
-		return "push error", false
+		return &taskData, false
 	}
+	return &taskData, true
 
-	//写入日志
-	ApiLog.Put(&taskData)
+}
 
-	value, flag := this.waitResult(key, timeOut)
+func (this *ApiRpcQueue) WaitResult(taskData *TaskData) (*TaskData, bool) {
+	value, flag := this.waitResult(taskData.Fun, taskData.TimeOut)
+	taskData.Result = value
+	return taskData, flag
+}
 
-	//E调试输出格式化("waitResult %v %s \r\n", flag, value)
-	return value, flag
+//推入任务并且等待结果
+func (this *ApiRpcQueue) PushWait(key string, senddata string, timeOut int64, priority int) (string, bool) {
+	task, flag := this.PushTask(key, senddata, timeOut, priority)
+
+	task, flag = this.WaitResult(task)
+
+	return task.Result, flag
 }
 
 //等待任务结果
-func (this *ApiRpcQueue) waitResult(key string, timeOut int) (string, bool) {
+func (this *ApiRpcQueue) waitResult(key string, timeOut int64) (string, bool) {
 	//注册监听通道
 	this.lock.Lock()
 	this.keychan[key] = make(chan string)
@@ -207,22 +213,20 @@ func (this *ApiRpcQueue) Pop() (*TaskData, int) {
 	//E调试输出格式化("Pop %s \r\n", ret.Strings()[1])
 	json.Unmarshal([]byte(ret.Strings()[1]), &taskData)
 	//E调试输出格式化("Pop %s \r\n", taskData)
-	if taskData.StartTime+taskData.TimeOut < int(E取时间戳()) {
+	if taskData.StartTime/1000+taskData.TimeOut < E取时间戳() {
 		//E调试输出格式化("任务超时抛弃 %s %s \r\n", ret.Strings()[0], taskData)
 		this.redisConn.Do("incr", ret.Strings()[0]+"_timeout_count")
 
-		ApiLog.SetStatus(taskData.Fun, 2)
 		return taskData, 2
 	}
 	this.redisConn.Do("incr", ret.Strings()[0]+"_pop_count")
 
-	ApiLog.SetStatus(taskData.Fun, 1)
 	return taskData, 1
 }
 
 //回到函数
 func (this *ApiRpcQueue) Callfun(taskData *TaskData) {
-	taskData.CompleteTime = int(E取时间戳())
+	//taskData.CompleteTime = int(E取时间戳())
 
 	jsondata, _ := json.Marshal(taskData)
 	//E调试输出("\r\n 通知任务完成", string(jsondata))
@@ -231,10 +235,6 @@ func (this *ApiRpcQueue) Callfun(taskData *TaskData) {
 	if err != nil {
 		panic(err)
 	}
-
-	//日志记录
-	ApiLog.Put_complete(taskData)
-	this.redisConn.Do("incr", taskData.Queue+"_complete_count")
 }
 
 //队列中相关信息
@@ -273,4 +273,8 @@ func (this *ApiRpcQueue) Info() interface{} {
 	//E调试输出(jsonData.ToJson(true))
 
 	return jsonData.Data()
+}
+
+func E取毫秒() int64 {
+	return time.Now().UnixNano() / 1e6
 }

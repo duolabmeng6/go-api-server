@@ -12,7 +12,7 @@ import (
 type Controller struct{}
 
 var Queue = Service.NewApiRpcQueue("queue_ip_query")
-var ApiRpcLog = Service.NewApiRpcLog()
+var ApiLog = Service.NewApiRpcLog()
 
 //获取队列中的任务
 func (c *Controller) Get(r *ghttp.Request) {
@@ -24,10 +24,13 @@ func (c *Controller) Get(r *ghttp.Request) {
 	}
 
 	if flag == 1 {
+		ApiLog.SetStatus(data.Fun, 1)
 		response.JsonExit(r, 200, "获取任务", data)
 	} else if flag == 0 {
 		response.JsonExit(r, 201, "没有任务")
 	} else if flag == 2 {
+		ApiLog.SetStatus(data.Fun, 2)
+
 		response.JsonExit(r, 202, "任务超时无需执行")
 	}
 
@@ -57,20 +60,46 @@ func (c *Controller) Info(r *ghttp.Request) {
 func (c *Controller) Create(r *ghttp.Request) {
 	parameter := E到文本(r.Get("data"))
 
-	time := New时间统计类()
-	time.E开始()
-
 	uuid := Euuidv4()
 	//E调试输出("生成任务id", uuid)
-	data, flag := Queue.PushWait(uuid, parameter, 5, E取随机数(0, 2))
+	task, flag := Queue.PushTask(uuid, parameter, 5, E取随机数(0, 2))
+	ApiLog.Put(task)
+
+	task, flag = Queue.WaitResult(task)
+
+	var taskLog *Service.TaskDataModel
 	if flag == false {
 		//E调试输出("失败了", data)
-		response.JsonExit(r, 0, "失败"+data)
+		taskLog = ApiLog.Put_complete(task, 2)
+
+		response.JsonExit(r, 0, "失败")
 		return
 	}
+	taskLog = ApiLog.Put_complete(task, 3)
+
 	//E调试输出格式化("收到任务结果  耗时 %s \r\n完成任务数据 %s \r\n", time.E取毫秒(), data)
+
 	json := NewJson()
-	json.LoadFromJsonString(data)
-	json.Set("time", time.E取毫秒())
+	json.LoadFromJsonString(task.Result)
+	json.Set("time", taskLog.ProcessTime)
+	json.Set("fun", taskLog.Fun)
 	response.JsonExit(r, 200, "成功", json.Data())
+}
+
+//提交处理后的任务数据composer require tymon/jwt-auth:1.0.0-rc.3
+func (c *Controller) Result(r *ghttp.Request) {
+	Fun := E到文本(r.Get("fun"))
+
+	task, flag := ApiLog.Find(Fun)
+
+	if flag {
+		json := NewJson()
+		json.LoadFromJsonString(task.Result)
+		json.Set("time", task.ProcessTime)
+		json.Set("fun", task.Fun)
+
+		response.JsonExit(r, 200, "成功", json.Data())
+	} else {
+		response.JsonExit(r, 201, "失败")
+	}
 }
