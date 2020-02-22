@@ -36,6 +36,8 @@ github.com/duolabmeng6/efun v1.0.4 h1:RFCnDNmlRG5FJIMcqLujM+J4/MPkMhyZcRaCL+NDaC
 github.com/duolabmeng6/efun v1.0.4/go.mod h1:DNaAApxr4xBV/daouyjs1VludJj1TkqA8HhpSyyX4iE=
 github.com/duolabmeng6/efun v1.0.5 h1:cc4KUBpFSRs1dZZbUegkbEgxMYJss7/w0Hg3skWh8qw=
 github.com/duolabmeng6/efun v1.0.5/go.mod h1:DNaAApxr4xBV/daouyjs1VludJj1TkqA8HhpSyyX4iE=
+github.com/duolabmeng6/efun v1.0.6 h1:9FWROqUWQW5xoGL7GofvdPe7iF4fRKqX7JcFn5YZVb0=
+github.com/duolabmeng6/efun v1.0.6/go.mod h1:DNaAApxr4xBV/daouyjs1VludJj1TkqA8HhpSyyX4iE=
 github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5/go.mod h1:a2zkGnVExMxdzMo3M0Hi/3sEU+cWnZpSni0O6/Yb/P0=
 github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
