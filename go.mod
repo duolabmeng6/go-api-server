@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/CHH/eventemitter v0.0.0-20120807115904-3e42a20a6810
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/duolabmeng6/efun v1.0.5
+	github.com/duolabmeng6/efun v1.0.6
 	github.com/go-openapi/spec v0.19.6 // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
 	github.com/gogf/gf v1.11.4

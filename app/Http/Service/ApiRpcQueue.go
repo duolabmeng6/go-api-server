@@ -274,7 +274,3 @@ func (this *ApiRpcQueue) Info() interface{} {
 
 	return jsonData.Data()
 }
-
-func E取毫秒() int64 {
-	return time.Now().UnixNano() / 1e6
-}
