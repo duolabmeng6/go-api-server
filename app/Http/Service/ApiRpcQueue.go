@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	. "github.com/duolabmeng6/efun/efun"
 	. "github.com/duolabmeng6/efun/src/utils"
-	"github.com/gogf/gf/database/gredis"
-	"github.com/gogf/gf/frame/g"
+	"github.com/gomodule/redigo/redis"
 	"sync"
 	"time"
 )
@@ -19,7 +18,7 @@ import (
 
 type ApiRpcQueue struct {
 	//redis客户端
-	redisConn *gredis.Redis
+	redisConn *redis.Pool
 	//等待消息回调的通道
 	keychan map[string]chan string
 	//redis订阅频道名称
@@ -64,38 +63,35 @@ func NewApiRpcQueue(queue_name string) *ApiRpcQueue {
 	go func() {
 		//E调试输出格式化("开始订阅数据 channel %s", this.channel)
 		//新建一个 redis连接
-		conn := g.Redis().Conn()
 
-		_, err := conn.Do("SUBSCRIBE", this.channel)
-		if err != nil {
-			panic(err)
-		}
+		Conn, _ := redis.Dial("tcp", "127.0.0.1:6379")
+
+		psc := redis.PubSubConn{Conn: Conn}
+		psc.Subscribe(this.channel)
 		for {
-			reply, err := conn.ReceiveVar()
-			if err != nil {
-				panic(err)
-			}
-			//message := reply.Vars()[0].String()
-			//channel := reply.Vars()[1].String()
-			value := reply.Vars()[2].String()
+			switch v := psc.Receive().(type) {
+			case redis.Message:
+				//E调试输出格式化("%s: message: %s\n", v.Channel, v.Data)
+				value := v.Data
+				taskData := &TaskData{}
+				json.Unmarshal([]byte(value), &taskData)
+				data := taskData.Result
+				fun := taskData.Fun
 
-			//E调试输出格式化("%s channel:%s value:%s \r\n", message, channel, value)
+				this.lock.RLock()
+				funchan, ok := this.keychan[fun]
+				this.lock.RUnlock()
+				if ok {
+					funchan <- data
+				} else {
+					//E调试输出格式化("fun not find %s", fun)
+				}
 
-			taskData := &TaskData{}
-			json.Unmarshal([]byte(value), &taskData)
-			data := taskData.Result
-			fun := taskData.Fun
-
-			//通过go的chan回调数据
-
-			this.lock.RLock()
-			funchan, ok := this.keychan[fun]
-			this.lock.RUnlock()
-			if ok {
-				funchan <- data
-			} else {
-				//E调试输出格式化("fun not find %s", fun)
-
+			case redis.Subscription:
+				E调试输出格式化("%s: %s %d\n", v.Channel, v.Kind, v.Count)
+			case error:
+				E调试输出("error", v)
+				//return v
 			}
 
 		}
@@ -106,7 +102,28 @@ func NewApiRpcQueue(queue_name string) *ApiRpcQueue {
 
 //初始化消息队列
 func (this *ApiRpcQueue) Init() *ApiRpcQueue {
-	this.redisConn = g.Redis()
+	//this.redisConn.Get() = g.Redis()
+	//p *Pool
+	//this.redisConn.Get(), _ = redis.Dial("tcp", "127.0.0.1:6379")
+
+	this.redisConn = &redis.Pool{
+		// Other pool configuration not shown in this example.
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.Dial("tcp", "127.0.0.1:6379")
+			if err != nil {
+				return nil, err
+			}
+			//if _, err := c.Do("AUTH", ""); err != nil {
+			//	c.Close()
+			//	return nil, err
+			//}
+			if _, err := c.Do("SELECT", 0); err != nil {
+				c.Close()
+				return nil, err
+			}
+			return c, nil
+		},
+	}
 	return this
 }
 
@@ -191,7 +208,7 @@ func (this *ApiRpcQueue) waitResult(key string, timeOut int64) (string, bool) {
 //加入任务
 func (this *ApiRpcQueue) push(data string, queueName string, priority int) bool {
 
-	_, err := this.redisConn.Do("lpush", queueName, data)
+	_, err := this.redisConn.Get().Do("lpush", queueName, data)
 	if err != nil {
 		E调试输出("Push Error", err.Error())
 	}
@@ -204,22 +221,22 @@ func (this *ApiRpcQueue) push(data string, queueName string, priority int) bool 
 func (this *ApiRpcQueue) Pop() (*TaskData, int) {
 	taskData := &TaskData{}
 	//这不支持优先级
-	//ret, _ := this.redisConn.DoVar("lpop", this.queueName)
+	//ret, _ := this.redisConn.Get().DoVar("lpop", this.queueName)
 	//支持优先级处理
-	ret, _ := this.redisConn.DoVar("brpop", this.queueName+"_2", this.queueName+"_1", this.queueName+"_0", 10)
-	if ret.String() == "" {
+	ret, _ := redis.Strings(this.redisConn.Get().Do("brpop", this.queueName+"_2", this.queueName+"_1", this.queueName+"_0", 10))
+	if len(ret) == 0 {
 		return taskData, 0
 	}
 	//E调试输出格式化("Pop %s \r\n", ret.Strings()[1])
-	json.Unmarshal([]byte(ret.Strings()[1]), &taskData)
+	json.Unmarshal([]byte(ret[1]), &taskData)
 	//E调试输出格式化("Pop %s \r\n", taskData)
 	if taskData.StartTime/1000+taskData.TimeOut < E取时间戳() {
 		//E调试输出格式化("任务超时抛弃 %s %s \r\n", ret.Strings()[0], taskData)
-		this.redisConn.Do("incr", ret.Strings()[0]+"_timeout_count")
+		this.redisConn.Get().Do("incr", ret[0]+"_timeout_count")
 
 		return taskData, 2
 	}
-	this.redisConn.Do("incr", ret.Strings()[0]+"_pop_count")
+	this.redisConn.Get().Do("incr", ret[0]+"_pop_count")
 
 	return taskData, 1
 }
@@ -231,7 +248,7 @@ func (this *ApiRpcQueue) Callfun(taskData *TaskData) {
 	jsondata, _ := json.Marshal(taskData)
 	//E调试输出("\r\n 通知任务完成", string(jsondata))
 	//E调试输出("\r\n Channel", taskData.Channel)
-	_, err := this.redisConn.Do("publish", taskData.Channel, jsondata)
+	_, err := this.redisConn.Get().Do("publish", taskData.Channel, jsondata)
 	if err != nil {
 		panic(err)
 	}
@@ -249,18 +266,18 @@ func (this *ApiRpcQueue) Info() interface{} {
 	jsonData := NewJson()
 
 	for i := 0; i < strarr.E取数组成员数(); i++ {
-		llen, _ := this.redisConn.DoVar("llen", strarr.Get(i))
-		list, _ := this.redisConn.DoVar("lrange", strarr.Get(i), 0, 10)
-		timeout_count, _ := this.redisConn.DoVar("get", strarr.Get(i)+"_timeout_count")
-		pop_count, _ := this.redisConn.DoVar("get", strarr.Get(i)+"_pop_count")
-		complete_count, _ := this.redisConn.DoVar("get", strarr.Get(i)+"_complete_count")
+		llen, _ := this.redisConn.Get().Do("llen", strarr.Get(i))
+		list, _ := redis.Strings(this.redisConn.Get().Do("lrange", strarr.Get(i), 0, 10))
+		timeout_count, _ := this.redisConn.Get().Do("get", strarr.Get(i)+"_timeout_count")
+		pop_count, _ := this.redisConn.Get().Do("get", strarr.Get(i)+"_pop_count")
+		complete_count, _ := this.redisConn.Get().Do("get", strarr.Get(i)+"_complete_count")
 
-		jsonData.Set(strarr.Get(i)+".count", llen.Int())
+		jsonData.Set(strarr.Get(i)+".count", llen)
 		jsonData.Set(strarr.Get(i)+".timeout_count", timeout_count)
 		jsonData.Set(strarr.Get(i)+".pop_count", pop_count)
 		jsonData.Set(strarr.Get(i)+".complete_count", complete_count)
 
-		for _, data := range list.Strings() {
+		for _, data := range list {
 			//E调试输出(data)
 
 			TaskData := TaskData{}

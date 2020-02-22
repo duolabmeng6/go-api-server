@@ -20,7 +20,7 @@ func TestDb(t *testing.T) {
 	})
 	E调试输出(flag)
 
-	flag2 := ApiLog.Update(&TaskData{
+	flag2 := ApiLog.Put_complete(&TaskData{
 		Fun:          "3c571325-8d65-4fb7-abb4-2d7fa4c620b1",
 		Data:         "aaaaaaaaaaaaaa",
 		StartTime:    0,
@@ -29,7 +29,7 @@ func TestDb(t *testing.T) {
 		CompleteTime: 0,
 		Channel:      "",
 		Queue:        "",
-	})
+	}, 3)
 	E调试输出(flag2)
 
 	data, flag3 := ApiLog.Find("3c571325-8d65-4fb7-abb4-2d7fa4c620b1")
