@@ -11,7 +11,7 @@
     ErrorStack        = true
     ErrorLogEnabled   = true
     ErrorLogPattern   = "error.{Ymd}.log"
-    AccessLogEnabled  = true
+    AccessLogEnabled  = false
     AccessLogPattern  = "access.{Ymd}.log"
 # 全局日志配置
 [logger]

@@ -78,10 +78,10 @@ func (this *ApiRpcLog) Put(data *TaskData) bool {
 	}
 
 	// 创建
-	this.lock.Lock()
-	defer this.lock.Unlock()
-
-	this.db.Create(&taskDataModel)
+	//this.lock.Lock()
+	//defer this.lock.Unlock()
+	//
+	//this.db.Create(&taskDataModel)
 
 	return true
 }
@@ -97,27 +97,27 @@ func (this *ApiRpcLog) Put_complete(data *TaskData, Status int) *TaskDataModel {
 	//E调试输出P(taskDataModel)
 	taskDataModel.Status = Status
 	// 创建
-	this.lock.Lock()
-	defer this.lock.Unlock()
+	//this.lock.Lock()
+	//defer this.lock.Unlock()
 
 	taskDataModel.CompleteTime = E取毫秒()
 	taskDataModel.ProcessTime = taskDataModel.CompleteTime - taskDataModel.StartTime
 
-	this.db.Model(&taskDataModel).
-		Where("fun = ?", taskDataModel.Fun).
-		Update(taskDataModel)
+	//this.db.Model(&taskDataModel).
+	//	Where("fun = ?", taskDataModel.Fun).
+	//	Update(taskDataModel)
 
 	return &taskDataModel
 }
 
 func (this *ApiRpcLog) SetStatus(fun string, status int) bool {
-	taskDataModel := TaskDataModel{}
+	//taskDataModel := TaskDataModel{}
 
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	this.db.Model(&taskDataModel).
-		Where("fun = ?", fun).
-		Update("status", status)
+	//this.lock.Lock()
+	//defer this.lock.Unlock()
+	//this.db.Model(&taskDataModel).
+	//	Where("fun = ?", fun).
+	//	Update("status", status)
 	return true
 }
 

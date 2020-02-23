@@ -62,7 +62,8 @@ func (c *Controller) Create(r *ghttp.Request) {
 
 	uuid := Euuidv4()
 	//E调试输出("生成任务id", uuid)
-	task, flag := Queue.PushTask(uuid, parameter, 5, E取随机数(0, 2))
+	//task, flag := Queue.PushTask(uuid, parameter, 5, E取随机数(0, 2))
+	task, flag := Queue.PushTask(uuid, parameter, 5, 2)
 	ApiLog.Put(task)
 
 	task, flag = Queue.WaitResult(task)
@@ -72,7 +73,7 @@ func (c *Controller) Create(r *ghttp.Request) {
 		//E调试输出("失败了", data)
 		taskLog = ApiLog.Put_complete(task, 2)
 
-		response.JsonExit(r, 0, "失败")
+		response.JsonExit(r, 0, "失败", task.Result)
 		return
 	}
 	taskLog = ApiLog.Put_complete(task, 3)

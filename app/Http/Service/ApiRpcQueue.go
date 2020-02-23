@@ -21,6 +21,7 @@ type ApiRpcQueue struct {
 	redisConn *redis.Pool
 	//等待消息回调的通道
 	keychan map[string]chan string
+
 	//redis订阅频道名称
 	channel string
 	//redis队列名称
@@ -63,10 +64,7 @@ func NewApiRpcQueue(queue_name string) *ApiRpcQueue {
 	go func() {
 		//E调试输出格式化("开始订阅数据 channel %s", this.channel)
 		//新建一个 redis连接
-
-		Conn, _ := redis.Dial("tcp", "127.0.0.1:6379")
-
-		psc := redis.PubSubConn{Conn: Conn}
+		psc := redis.PubSubConn{Conn: this.redisConn.Get()}
 		psc.Subscribe(this.channel)
 		for {
 			switch v := psc.Receive().(type) {
@@ -86,12 +84,14 @@ func NewApiRpcQueue(queue_name string) *ApiRpcQueue {
 				} else {
 					//E调试输出格式化("fun not find %s", fun)
 				}
-
 			case redis.Subscription:
 				E调试输出格式化("%s: %s %d\n", v.Channel, v.Kind, v.Count)
 			case error:
-				E调试输出("error", v)
+				E调试输出("Subscribe error", v)
 				//return v
+
+				psc = redis.PubSubConn{Conn: this.redisConn.Get()}
+				psc.Subscribe(this.channel)
 			}
 
 		}
@@ -107,27 +107,31 @@ func (this *ApiRpcQueue) Init() *ApiRpcQueue {
 	//this.redisConn.Get(), _ = redis.Dial("tcp", "127.0.0.1:6379")
 
 	this.redisConn = &redis.Pool{
-		// Other pool configuration not shown in this example.
+		MaxIdle:     1000,
+		MaxActive:   0,
+		IdleTimeout: 240 * time.Second,
+		Wait:        true,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", "127.0.0.1:6379")
+			con, err := redis.Dial("tcp", "127.0.0.1:6379",
+				//redis.DialPassword(conf["Password"].(string)),
+				redis.DialDatabase(int(0)),
+				redis.DialConnectTimeout(240*time.Second),
+				redis.DialReadTimeout(240*time.Second),
+				redis.DialWriteTimeout(240*time.Second))
 			if err != nil {
 				return nil, err
 			}
-			//if _, err := c.Do("AUTH", ""); err != nil {
-			//	c.Close()
-			//	return nil, err
-			//}
-			if _, err := c.Do("SELECT", 0); err != nil {
-				c.Close()
-				return nil, err
-			}
-			return c, nil
+			return con, nil
 		},
 	}
 	return this
 }
 
 func (this *ApiRpcQueue) PushTask(key string, senddata string, timeOut int64, priority int) (*TaskData, bool) {
+	conn := this.redisConn.Get()
+	defer conn.Close()
+	conn.Do("incr", "count")
+
 	taskData := TaskData{}
 	//任务id
 	taskData.Fun = key
@@ -173,16 +177,19 @@ func (this *ApiRpcQueue) waitResult(key string, timeOut int64) (string, bool) {
 	//注册监听通道
 	this.lock.Lock()
 	this.keychan[key] = make(chan string)
+	mychan := this.keychan[key]
 	this.lock.Unlock()
 
 	var value string
 
 	breakFlag := false
 	timeOutFlag := false
+
 	for {
 		select {
-		case data := <-this.keychan[key]:
-			//收到结果放进去
+
+		case data := <-mychan:
+			//收到结果放进RUnlock()
 			value = data
 			breakFlag = true
 		case <-time.After(time.Duration(timeOut) * time.Second):
@@ -208,10 +215,13 @@ func (this *ApiRpcQueue) waitResult(key string, timeOut int64) (string, bool) {
 //加入任务
 func (this *ApiRpcQueue) push(data string, queueName string, priority int) bool {
 
-	_, err := this.redisConn.Get().Do("lpush", queueName, data)
+	conn := this.redisConn.Get()
+	defer conn.Close()
+	_, err := conn.Do("lpush", queueName, data)
 	if err != nil {
 		E调试输出("Push Error", err.Error())
 	}
+
 	return err == nil
 }
 
@@ -223,20 +233,25 @@ func (this *ApiRpcQueue) Pop() (*TaskData, int) {
 	//这不支持优先级
 	//ret, _ := this.redisConn.Get().DoVar("lpop", this.queueName)
 	//支持优先级处理
-	ret, _ := redis.Strings(this.redisConn.Get().Do("brpop", this.queueName+"_2", this.queueName+"_1", this.queueName+"_0", 10))
+	conn := this.redisConn.Get()
+	defer conn.Close()
+
+	ret, _ := redis.Strings(conn.Do("brpop", this.queueName+"_2", this.queueName+"_1", this.queueName+"_0", 10))
 	if len(ret) == 0 {
 		return taskData, 0
 	}
 	//E调试输出格式化("Pop %s \r\n", ret.Strings()[1])
 	json.Unmarshal([]byte(ret[1]), &taskData)
 	//E调试输出格式化("Pop %s \r\n", taskData)
+	//E调试输出格式化("Pop %s \r\n", taskData.StartTime, taskData.StartTime/1000, taskData.TimeOut, E取时间戳())
+
 	if taskData.StartTime/1000+taskData.TimeOut < E取时间戳() {
-		//E调试输出格式化("任务超时抛弃 %s %s \r\n", ret.Strings()[0], taskData)
-		this.redisConn.Get().Do("incr", ret[0]+"_timeout_count")
+		//E调试输出格式化("任务超时抛弃 %s %s \r\n", ret[0], taskData)
+		//this.redisConn.Get().Do("incr", ret[0]+"_timeout_count")
 
 		return taskData, 2
 	}
-	this.redisConn.Get().Do("incr", ret[0]+"_pop_count")
+	//this.redisConn.Get().Do("incr", ret[0]+"_pop_count")
 
 	return taskData, 1
 }
@@ -248,7 +263,9 @@ func (this *ApiRpcQueue) Callfun(taskData *TaskData) {
 	jsondata, _ := json.Marshal(taskData)
 	//E调试输出("\r\n 通知任务完成", string(jsondata))
 	//E调试输出("\r\n Channel", taskData.Channel)
-	_, err := this.redisConn.Get().Do("publish", taskData.Channel, jsondata)
+	conn := this.redisConn.Get()
+	defer conn.Close()
+	_, err := conn.Do("publish", taskData.Channel, jsondata)
 	if err != nil {
 		panic(err)
 	}
